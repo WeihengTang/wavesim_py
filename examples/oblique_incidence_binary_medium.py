@@ -24,9 +24,9 @@ np.random.seed(42)
 
 # Parameters
 wavelength = 1.0  # wavelength in micrometers (um)
-pixel_size = 0.25  # points per wavelength (4 pixels per wavelength)
+pixel_size = 0.1  # points per wavelength (10 pixels per wavelength for higher resolution)
 
-# Grid size: 10×10×1 wavelengths = 40×40×4 pixels (since pixel_size = 0.25)
+# Grid size: 10×10×1 wavelengths = 100×100×10 pixels (since pixel_size = 0.1)
 n_wavelengths = (10, 10, 1)  # size in wavelengths
 n_size = tuple(int(w / pixel_size) for w in n_wavelengths)  # size in pixels
 print(f"Grid size: {n_size} pixels ({n_wavelengths} wavelengths)")
@@ -55,6 +55,7 @@ for i in range(n_wavelengths[0]):
 print(f"Refractive indices: {np.unique(n_map.real)} (binary: 1.0 and 2.2)")
 print(f"Number of n=1.0 pillars: {np.sum(random_mask == 0)}")
 print(f"Number of n=2.2 pillars: {np.sum(random_mask == 1)}")
+print(f"Pixels per wavelength: {pixels_per_wavelength}")
 
 # Add boundaries and convert to permittivity
 boundary_widths = 8  # width of the boundary in pixels
@@ -128,6 +129,11 @@ print(f'Field amplitude range: {np.abs(field_roi).min():.3e} to {np.abs(field_ro
 def create_visualizations(field_3d, n_map_roi, random_mask):
     """Create multiple 2D visualizations of the simulation results"""
 
+    # Create output directory
+    import os
+    output_dir = 'oblique_incidence_visualizations'
+    os.makedirs(output_dir, exist_ok=True)
+
     # Calculate field properties
     intensity = np.abs(field_3d)**2
     phase = np.angle(field_3d)
@@ -147,7 +153,7 @@ def create_visualizations(field_3d, n_map_roi, random_mask):
     y_mid = n_map_roi.shape[1] // 2
     ax2 = plt.subplot(3, 4, 2)
     n_xz = n_map_roi[:, y_mid, :].real
-    im2 = ax2.imshow(n_xz.T, cmap='viridis', origin='lower', aspect='auto',
+    im2 = ax2.imshow(n_xz.T, cmap='viridis', origin='lower', aspect='equal',
                      extent=[0, n_wavelengths[0], 0, n_wavelengths[2]])
     ax2.set_title('Refractive Index (X-Z)')
     ax2.set_xlabel('X (wavelengths)')
@@ -157,7 +163,7 @@ def create_visualizations(field_3d, n_map_roi, random_mask):
     # 3. Field intensity - X-Z plane (middle Y)
     ax3 = plt.subplot(3, 4, 3)
     intensity_xz = intensity[:, y_mid, :]
-    im3 = ax3.imshow(intensity_xz.T, cmap='hot', origin='lower', aspect='auto',
+    im3 = ax3.imshow(intensity_xz.T, cmap='hot', origin='lower', aspect='equal',
                      extent=[0, n_wavelengths[0], 0, n_wavelengths[2]])
     ax3.set_title('Intensity |E|² (X-Z)')
     ax3.set_xlabel('X (wavelengths)')
@@ -167,7 +173,7 @@ def create_visualizations(field_3d, n_map_roi, random_mask):
     # 4. Field phase - X-Z plane (middle Y)
     ax4 = plt.subplot(3, 4, 4)
     phase_xz = phase[:, y_mid, :]
-    im4 = ax4.imshow(phase_xz.T, cmap='hsv', origin='lower', aspect='auto',
+    im4 = ax4.imshow(phase_xz.T, cmap='hsv', origin='lower', aspect='equal',
                      extent=[0, n_wavelengths[0], 0, n_wavelengths[2]],
                      vmin=-np.pi, vmax=np.pi)
     ax4.set_title('Phase arg(E) (X-Z)')
@@ -199,7 +205,7 @@ def create_visualizations(field_3d, n_map_roi, random_mask):
     x_mid = intensity.shape[0] // 2
     ax7 = plt.subplot(3, 4, 7)
     intensity_yz = intensity[x_mid, :, :]
-    im7 = ax7.imshow(intensity_yz.T, cmap='hot', origin='lower', aspect='auto',
+    im7 = ax7.imshow(intensity_yz.T, cmap='hot', origin='lower', aspect='equal',
                      extent=[0, n_wavelengths[1], 0, n_wavelengths[2]])
     ax7.set_title('Intensity |E|² (Y-Z)')
     ax7.set_xlabel('Y (wavelengths)')
@@ -234,7 +240,7 @@ def create_visualizations(field_3d, n_map_roi, random_mask):
     # 10. Real part of field - X-Z plane
     ax10 = plt.subplot(3, 4, 10)
     real_xz = field_3d[:, y_mid, :].real
-    im10 = ax10.imshow(real_xz.T, cmap='RdBu', origin='lower', aspect='auto',
+    im10 = ax10.imshow(real_xz.T, cmap='RdBu', origin='lower', aspect='equal',
                        extent=[0, n_wavelengths[0], 0, n_wavelengths[2]])
     ax10.set_title('Re(E) Wave Pattern (X-Z)')
     ax10.set_xlabel('X (wavelengths)')
@@ -270,8 +276,119 @@ def create_visualizations(field_3d, n_map_roi, random_mask):
     ax12.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig('oblique_incidence_analysis.png', dpi=300, bbox_inches='tight')
+    overview_path = os.path.join(output_dir, 'overview_all_plots.png')
+    plt.savefig(overview_path, dpi=300, bbox_inches='tight')
     plt.show()
+
+    # Save individual plots
+    print(f"Saving individual plots to {output_dir}/...")
+
+    # 1. Random mask
+    fig1, ax = plt.subplots(figsize=(8, 6))
+    im = ax.imshow(random_mask.squeeze(), cmap='binary', origin='lower')
+    ax.set_title('Random Binary Mask (0=n1.0, 1=n2.2)', fontsize=14)
+    ax.set_xlabel('Y (wavelengths)')
+    ax.set_ylabel('X (wavelengths)')
+    plt.colorbar(im, ax=ax)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, '01_random_mask.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # 2. Refractive index X-Z
+    fig2, ax = plt.subplots(figsize=(10, 6))
+    n_xz = n_map_roi[:, y_mid, :].real
+    im = ax.imshow(n_xz.T, cmap='viridis', origin='lower', aspect='equal',
+                   extent=[0, n_wavelengths[0], 0, n_wavelengths[2]])
+    ax.set_title('Refractive Index Cross-section (X-Z plane)', fontsize=14)
+    ax.set_xlabel('X (wavelengths)')
+    ax.set_ylabel('Z (wavelengths)')
+    plt.colorbar(im, ax=ax, label='Refractive Index')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, '02_refractive_index_xz.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # 3. Intensity X-Z
+    fig3, ax = plt.subplots(figsize=(10, 6))
+    intensity_xz = intensity[:, y_mid, :]
+    im = ax.imshow(intensity_xz.T, cmap='hot', origin='lower', aspect='equal',
+                   extent=[0, n_wavelengths[0], 0, n_wavelengths[2]])
+    ax.set_title('Field Intensity |E|² (X-Z plane)', fontsize=14)
+    ax.set_xlabel('X (wavelengths)')
+    ax.set_ylabel('Z (wavelengths)')
+    plt.colorbar(im, ax=ax, label='Intensity')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, '03_intensity_xz.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # 4. Phase X-Z
+    fig4, ax = plt.subplots(figsize=(10, 6))
+    phase_xz = phase[:, y_mid, :]
+    im = ax.imshow(phase_xz.T, cmap='hsv', origin='lower', aspect='equal',
+                   extent=[0, n_wavelengths[0], 0, n_wavelengths[2]],
+                   vmin=-np.pi, vmax=np.pi)
+    ax.set_title('Field Phase arg(E) (X-Z plane)', fontsize=14)
+    ax.set_xlabel('X (wavelengths)')
+    ax.set_ylabel('Z (wavelengths)')
+    plt.colorbar(im, ax=ax, label='Phase (rad)')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, '04_phase_xz.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # 5. Input beam
+    fig5, ax = plt.subplots(figsize=(8, 8))
+    intensity_xy_input = intensity[:, :, 0]
+    im = ax.imshow(intensity_xy_input.T, cmap='hot', origin='lower', aspect='equal',
+                   extent=[0, n_wavelengths[0], 0, n_wavelengths[1]])
+    ax.set_title('Input Beam Intensity (X-Y, z=0)', fontsize=14)
+    ax.set_xlabel('X (wavelengths)')
+    ax.set_ylabel('Y (wavelengths)')
+    plt.colorbar(im, ax=ax, label='Intensity')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, '05_input_beam.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # 6. Output beam
+    fig6, ax = plt.subplots(figsize=(8, 8))
+    intensity_xy_output = intensity[:, :, -1]
+    im = ax.imshow(intensity_xy_output.T, cmap='hot', origin='lower', aspect='equal',
+                   extent=[0, n_wavelengths[0], 0, n_wavelengths[1]])
+    ax.set_title('Output Beam Intensity (X-Y, z=1λ)', fontsize=14)
+    ax.set_xlabel('X (wavelengths)')
+    ax.set_ylabel('Y (wavelengths)')
+    plt.colorbar(im, ax=ax, label='Intensity')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, '06_output_beam.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # 7. Real field X-Z
+    fig7, ax = plt.subplots(figsize=(10, 6))
+    real_xz = field_3d[:, y_mid, :].real
+    im = ax.imshow(real_xz.T, cmap='RdBu', origin='lower', aspect='equal',
+                   extent=[0, n_wavelengths[0], 0, n_wavelengths[2]])
+    ax.set_title('Real Field Re(E) Wave Pattern (X-Z)', fontsize=14)
+    ax.set_xlabel('X (wavelengths)')
+    ax.set_ylabel('Z (wavelengths)')
+    plt.colorbar(im, ax=ax, label='Re(E)')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, '07_real_field_xz.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # 8. Transmission analysis
+    fig8, ax = plt.subplots(figsize=(10, 6))
+    z_coords = np.linspace(0, n_wavelengths[2], intensity.shape[2])
+    avg_intensity_z = np.mean(intensity, axis=(0, 1))
+    max_intensity_z = np.max(intensity, axis=(0, 1))
+    min_intensity_z = np.min(intensity, axis=(0, 1))
+    ax.plot(z_coords, avg_intensity_z, 'b-', linewidth=2, label='Average')
+    ax.fill_between(z_coords, min_intensity_z, max_intensity_z, alpha=0.3, label='Min-Max Range')
+    ax.set_xlabel('Z (wavelengths)')
+    ax.set_ylabel('Intensity')
+    ax.set_title('Intensity vs Propagation Distance', fontsize=14)
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, '08_transmission_analysis.png'), dpi=300, bbox_inches='tight')
+    plt.close()
 
     # Print some analysis results
     print(f"\n--- Scattering Analysis ---")
@@ -308,4 +425,4 @@ n_map_roi = n_map  # Original n_map without boundaries
 
 print("\nGenerating visualizations...")
 create_visualizations(field_roi_only, n_map_roi, random_mask)
-print("Visualization saved as 'oblique_incidence_analysis.png'")
+print("Visualizations saved in 'oblique_incidence_visualizations/' folder")
