@@ -207,6 +207,36 @@ Parameters in the `run_algorithm()` function
 * `max_iterations` `: int = 1000`: maximum number of iterations
 * `threshold` `: float = 1.e-6`: threshold for the residual norm for stopping the iteration
 
+## Advanced Examples
+
+### Oblique Incidence Scattering Simulation
+
+A comprehensive example demonstrating oblique light scattering through binary random media is available at [`examples/oblique_incidence_binary_medium.py`](https://github.com/IvoVellekoop/wavesim_py/blob/main/examples/oblique_incidence_binary_medium.py).
+
+**Key Features:**
+- **Oblique incidence**: 30° angle plane wave propagation
+- **Binary random medium**: 10×10×1 wavelength region with random refractive index pillars (n=1.0 or n=2.2)
+- **Air layer**: 0.5λ air region to visualize incident wave before scattering
+- **High resolution**: 10 pixels per wavelength for detailed wave physics
+- **Comprehensive visualization**: 13 publication-quality plots showing:
+  - Wave propagation through different cross-sections
+  - Intensity and phase evolution
+  - Scattering patterns and beam spreading analysis
+  - Transmission characteristics at air-medium interface
+
+**Running the simulation:**
+```bash
+python examples/oblique_incidence_binary_medium.py
+```
+
+**Output:**
+- **Simulation domain**: 100×100×15 pixels (10×10×1.5 wavelengths)
+- **Visualization folder**: `oblique_incidence_visualizations/`
+- **13 high-resolution images** (300 DPI) including overview and individual plots
+- **Quantitative analysis**: transmission ratios, beam spreading, and scattering metrics
+
+This example demonstrates advanced wavesim capabilities for complex scattering problems and serves as a template for optical metamaterial and photonic crystal simulations.
+
 ## Acknowledgements
 
 This work was supported by the European Research Council’s Proof of Concept Grant n° [101069402].
