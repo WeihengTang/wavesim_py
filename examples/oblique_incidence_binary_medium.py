@@ -432,6 +432,80 @@ def create_visualizations(field_3d, n_map_roi, random_mask):
     plt.savefig(os.path.join(output_dir, '08_transmission_analysis.png'), dpi=300, bbox_inches='tight')
     plt.close()
 
+    # 9. Y-Z intensity plane
+    fig9, ax = plt.subplots(figsize=(10, 6))
+    x_mid = intensity.shape[0] // 2
+    intensity_yz = intensity[x_mid, :, :]
+    im = ax.imshow(intensity_yz.T, cmap='hot', origin='lower', aspect='equal',
+                   extent=[0, n_wavelengths_total[1], 0, n_wavelengths_total[2]])
+    ax.set_title('Field Intensity |E|² (Y-Z plane)', fontsize=14)
+    ax.set_xlabel('Y (wavelengths)')
+    ax.set_ylabel('Z (wavelengths)')
+    ax.axhline(y=air_layer_thickness, color='cyan', linestyle='--', alpha=0.8, linewidth=2, label='Air-Medium Interface')
+    ax.legend()
+    plt.colorbar(im, ax=ax, label='Intensity')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, '09_intensity_yz.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # 10. Transmitted beam pattern
+    fig10, ax = plt.subplots(figsize=(8, 8))
+    final_intensity = intensity[:, :, -1]
+    im = ax.imshow(final_intensity.T, cmap='plasma', origin='lower', aspect='equal',
+                   extent=[0, n_wavelengths_total[0], 0, n_wavelengths_total[1]])
+    ax.set_title('Final Transmitted Beam Pattern', fontsize=14)
+    ax.set_xlabel('X (wavelengths)')
+    ax.set_ylabel('Y (wavelengths)')
+    plt.colorbar(im, ax=ax, label='Intensity')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, '10_transmitted_pattern.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # 11. Cross-sectional intensity profiles
+    fig11, ax = plt.subplots(figsize=(10, 6))
+    x_coords = np.linspace(0, n_wavelengths_total[0], intensity.shape[0])
+
+    # Intensity profiles at different z positions
+    air_interface_idx = int(air_layer_thickness * intensity.shape[2] / n_wavelengths_total[2])
+    z_positions = [0, air_interface_idx//2, air_interface_idx, (air_interface_idx + intensity.shape[2])//2, intensity.shape[2]-1]
+    z_values = [z_pos * n_wavelengths_total[2] / intensity.shape[2] for z_pos in z_positions]
+    z_labels = [f'z={z_val:.2f}λ' for z_val in z_values]
+
+    y_mid = intensity.shape[1] // 2
+    for i, (z_pos, z_label) in enumerate(zip(z_positions, z_labels)):
+        profile = intensity[:, y_mid, z_pos]
+        ax.plot(x_coords, profile, linewidth=2, label=z_label)
+
+    ax.set_xlabel('X (wavelengths)')
+    ax.set_ylabel('Intensity')
+    ax.set_title('Intensity X-profiles at Different Z Positions', fontsize=14)
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, '11_intensity_profiles.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # 12. Phase evolution along propagation
+    fig12, ax = plt.subplots(figsize=(10, 6))
+    z_coords = np.linspace(0, n_wavelengths_total[2], intensity.shape[2])
+    phase_evolution = np.mean(phase, axis=(0, 1))
+    ax.plot(z_coords, phase_evolution, 'r-', linewidth=2, label='Average Phase')
+    ax.axvline(x=air_layer_thickness, color='black', linestyle='--', alpha=0.8, linewidth=2, label='Air-Medium Interface')
+    ax.set_xlabel('Z (wavelengths)')
+    ax.set_ylabel('Average Phase (rad)')
+    ax.set_title('Phase Evolution During Propagation', fontsize=14)
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+    # Add text annotations
+    ax.text(air_layer_thickness/2, ax.get_ylim()[1]*0.9, 'Air Layer',
+            ha='center', va='top', fontsize=12, bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.7))
+    ax.text(air_layer_thickness + (n_wavelengths_total[2]-air_layer_thickness)/2, ax.get_ylim()[1]*0.9,
+            'Random Medium', ha='center', va='top', fontsize=12,
+            bbox=dict(boxstyle='round', facecolor='lightcoral', alpha=0.7))
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, '12_phase_evolution.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+
     # Print some analysis results
     print(f"\n--- Scattering Analysis ---")
     incident_power = np.sum(intensity[:, :, 0])
