@@ -10,6 +10,8 @@ import torch
 import numpy as np
 from time import time
 import sys
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 sys.path.append(".")
 from wavesim.helmholtzdomain import HelmholtzDomain
 from wavesim.multidomain import MultiDomain
@@ -122,8 +124,188 @@ print(f'Field amplitude range: {np.abs(field_roi).min():.3e} to {np.abs(field_ro
 # The field_roi now contains the wave field after passing through the binary random medium
 # You can analyze transmission, reflection, scattering patterns, etc.
 
-# Optional: Plot results if plotting is available
-try:
-    plot(field_roi, None, None)
-except:
-    print("Plotting not available, but simulation completed successfully")
+# Enhanced 2D Visualization using slices
+def create_visualizations(field_3d, n_map_roi, random_mask):
+    """Create multiple 2D visualizations of the simulation results"""
+
+    # Calculate field properties
+    intensity = np.abs(field_3d)**2
+    phase = np.angle(field_3d)
+
+    # Create figure with subplots
+    fig = plt.figure(figsize=(16, 12))
+
+    # 1. Random mask pattern (top-view)
+    ax1 = plt.subplot(3, 4, 1)
+    im1 = ax1.imshow(random_mask.squeeze(), cmap='binary', origin='lower')
+    ax1.set_title('Random Binary Mask\n(0=n1.0, 1=n2.2)')
+    ax1.set_xlabel('Y (wavelengths)')
+    ax1.set_ylabel('X (wavelengths)')
+    plt.colorbar(im1, ax=ax1)
+
+    # 2. Refractive index cross-section (X-Z plane, middle Y)
+    y_mid = n_map_roi.shape[1] // 2
+    ax2 = plt.subplot(3, 4, 2)
+    n_xz = n_map_roi[:, y_mid, :].real
+    im2 = ax2.imshow(n_xz.T, cmap='viridis', origin='lower', aspect='auto',
+                     extent=[0, n_wavelengths[0], 0, n_wavelengths[2]])
+    ax2.set_title('Refractive Index (X-Z)')
+    ax2.set_xlabel('X (wavelengths)')
+    ax2.set_ylabel('Z (wavelengths)')
+    plt.colorbar(im2, ax=ax2, label='Refractive Index')
+
+    # 3. Field intensity - X-Z plane (middle Y)
+    ax3 = plt.subplot(3, 4, 3)
+    intensity_xz = intensity[:, y_mid, :]
+    im3 = ax3.imshow(intensity_xz.T, cmap='hot', origin='lower', aspect='auto',
+                     extent=[0, n_wavelengths[0], 0, n_wavelengths[2]])
+    ax3.set_title('Intensity |E|² (X-Z)')
+    ax3.set_xlabel('X (wavelengths)')
+    ax3.set_ylabel('Z (wavelengths)')
+    plt.colorbar(im3, ax=ax3, label='Intensity')
+
+    # 4. Field phase - X-Z plane (middle Y)
+    ax4 = plt.subplot(3, 4, 4)
+    phase_xz = phase[:, y_mid, :]
+    im4 = ax4.imshow(phase_xz.T, cmap='hsv', origin='lower', aspect='auto',
+                     extent=[0, n_wavelengths[0], 0, n_wavelengths[2]],
+                     vmin=-np.pi, vmax=np.pi)
+    ax4.set_title('Phase arg(E) (X-Z)')
+    ax4.set_xlabel('X (wavelengths)')
+    ax4.set_ylabel('Z (wavelengths)')
+    plt.colorbar(im4, ax=ax4, label='Phase (rad)')
+
+    # 5. Field intensity - X-Y plane (input face, z=0)
+    ax5 = plt.subplot(3, 4, 5)
+    intensity_xy_input = intensity[:, :, 0]
+    im5 = ax5.imshow(intensity_xy_input.T, cmap='hot', origin='lower',
+                     extent=[0, n_wavelengths[0], 0, n_wavelengths[1]])
+    ax5.set_title('Input Intensity (X-Y, z=0)')
+    ax5.set_xlabel('X (wavelengths)')
+    ax5.set_ylabel('Y (wavelengths)')
+    plt.colorbar(im5, ax=ax5, label='Intensity')
+
+    # 6. Field intensity - X-Y plane (output face, z=end)
+    ax6 = plt.subplot(3, 4, 6)
+    intensity_xy_output = intensity[:, :, -1]
+    im6 = ax6.imshow(intensity_xy_output.T, cmap='hot', origin='lower',
+                     extent=[0, n_wavelengths[0], 0, n_wavelengths[1]])
+    ax6.set_title('Output Intensity (X-Y, z=1λ)')
+    ax6.set_xlabel('X (wavelengths)')
+    ax6.set_ylabel('Y (wavelengths)')
+    plt.colorbar(im6, ax=ax6, label='Intensity')
+
+    # 7. Field intensity - Y-Z plane (middle X)
+    x_mid = intensity.shape[0] // 2
+    ax7 = plt.subplot(3, 4, 7)
+    intensity_yz = intensity[x_mid, :, :]
+    im7 = ax7.imshow(intensity_yz.T, cmap='hot', origin='lower', aspect='auto',
+                     extent=[0, n_wavelengths[1], 0, n_wavelengths[2]])
+    ax7.set_title('Intensity |E|² (Y-Z)')
+    ax7.set_xlabel('Y (wavelengths)')
+    ax7.set_ylabel('Z (wavelengths)')
+    plt.colorbar(im7, ax=ax7, label='Intensity')
+
+    # 8. Transmission analysis - intensity along Z
+    ax8 = plt.subplot(3, 4, 8)
+    z_coords = np.linspace(0, n_wavelengths[2], intensity.shape[2])
+    avg_intensity_z = np.mean(intensity, axis=(0, 1))
+    max_intensity_z = np.max(intensity, axis=(0, 1))
+    min_intensity_z = np.min(intensity, axis=(0, 1))
+
+    ax8.plot(z_coords, avg_intensity_z, 'b-', linewidth=2, label='Average')
+    ax8.fill_between(z_coords, min_intensity_z, max_intensity_z, alpha=0.3, label='Min-Max Range')
+    ax8.set_xlabel('Z (wavelengths)')
+    ax8.set_ylabel('Intensity')
+    ax8.set_title('Intensity vs Propagation Distance')
+    ax8.grid(True, alpha=0.3)
+    ax8.legend()
+
+    # 9. Scattering pattern - final intensity distribution
+    ax9 = plt.subplot(3, 4, 9)
+    final_intensity = intensity[:, :, -1]
+    im9 = ax9.imshow(final_intensity.T, cmap='plasma', origin='lower',
+                     extent=[0, n_wavelengths[0], 0, n_wavelengths[1]])
+    ax9.set_title('Transmitted Beam Pattern')
+    ax9.set_xlabel('X (wavelengths)')
+    ax9.set_ylabel('Y (wavelengths)')
+    plt.colorbar(im9, ax=ax9, label='Intensity')
+
+    # 10. Real part of field - X-Z plane
+    ax10 = plt.subplot(3, 4, 10)
+    real_xz = field_3d[:, y_mid, :].real
+    im10 = ax10.imshow(real_xz.T, cmap='RdBu', origin='lower', aspect='auto',
+                       extent=[0, n_wavelengths[0], 0, n_wavelengths[2]])
+    ax10.set_title('Re(E) Wave Pattern (X-Z)')
+    ax10.set_xlabel('X (wavelengths)')
+    ax10.set_ylabel('Z (wavelengths)')
+    plt.colorbar(im10, ax=ax10, label='Re(E)')
+
+    # 11. Cross-sectional intensity profiles
+    ax11 = plt.subplot(3, 4, 11)
+    x_coords = np.linspace(0, n_wavelengths[0], intensity.shape[0])
+    y_coords = np.linspace(0, n_wavelengths[1], intensity.shape[1])
+
+    # Intensity profiles at different z positions
+    z_positions = [0, intensity.shape[2]//4, intensity.shape[2]//2, intensity.shape[2]-1]
+    z_labels = ['z=0', 'z=0.25λ', 'z=0.5λ', 'z=1λ']
+
+    for i, (z_pos, z_label) in enumerate(zip(z_positions, z_labels)):
+        profile = intensity[:, y_mid, z_pos]
+        ax11.plot(x_coords, profile, linewidth=2, label=z_label)
+
+    ax11.set_xlabel('X (wavelengths)')
+    ax11.set_ylabel('Intensity')
+    ax11.set_title('X-profiles at Different Z')
+    ax11.grid(True, alpha=0.3)
+    ax11.legend()
+
+    # 12. Phase evolution
+    ax12 = plt.subplot(3, 4, 12)
+    phase_evolution = np.mean(phase, axis=(0, 1))
+    ax12.plot(z_coords, phase_evolution, 'r-', linewidth=2)
+    ax12.set_xlabel('Z (wavelengths)')
+    ax12.set_ylabel('Average Phase (rad)')
+    ax12.set_title('Phase Evolution')
+    ax12.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig('oblique_incidence_analysis.png', dpi=300, bbox_inches='tight')
+    plt.show()
+
+    # Print some analysis results
+    print(f"\n--- Scattering Analysis ---")
+    incident_power = np.sum(intensity[:, :, 0])
+    transmitted_power = np.sum(intensity[:, :, -1])
+    transmission_ratio = transmitted_power / incident_power
+
+    print(f"Incident power: {incident_power:.3f}")
+    print(f"Transmitted power: {transmitted_power:.3f}")
+    print(f"Transmission ratio: {transmission_ratio:.3f}")
+    print(f"Max intensity enhancement: {np.max(intensity) / np.max(intensity[:, :, 0]):.3f}")
+
+    # Beam spreading analysis
+    def beam_width(intensity_2d):
+        center_y = intensity_2d.shape[1] // 2
+        x_profile = intensity_2d[:, center_y]
+        total_power = np.sum(x_profile)
+        if total_power > 0:
+            x_coords = np.arange(len(x_profile))
+            centroid = np.sum(x_coords * x_profile) / total_power
+            variance = np.sum((x_coords - centroid)**2 * x_profile) / total_power
+            return 2 * np.sqrt(variance) * pixel_size * wavelength  # FWHM approximation
+        return 0
+
+    input_width = beam_width(intensity[:, :, 0])
+    output_width = beam_width(intensity[:, :, -1])
+    print(f"Input beam width: {input_width:.3f} wavelengths")
+    print(f"Output beam width: {output_width:.3f} wavelengths")
+    print(f"Beam spreading factor: {output_width/input_width:.3f}")
+
+# Remove boundaries to get ROI-only field and refractive index
+field_roi_only = field_roi
+n_map_roi = n_map  # Original n_map without boundaries
+
+print("\nGenerating visualizations...")
+create_visualizations(field_roi_only, n_map_roi, random_mask)
+print("Visualization saved as 'oblique_incidence_analysis.png'")
