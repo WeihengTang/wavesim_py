@@ -38,7 +38,7 @@ print(f"Air layer: {air_pixels} pixels ({air_layer_thickness} wavelengths)")
 print(f"Medium: {medium_pixels} pixels ({n_wavelengths_medium[2]} wavelengths)")
 
 # Generate binary random mask (10×10 pillars)
-random_mask = np.random.randint(0, 2, size=(n_wavelengths[0], n_wavelengths[1], n_wavelengths[2]))
+random_mask = np.random.randint(0, 2, size=(n_wavelengths_medium[0], n_wavelengths_medium[1], n_wavelengths_medium[2]))
 print(f"Random mask (10×10×1): \n{random_mask.squeeze()}")
 
 # Convert mask to refractive indices: 0→n=1.0, 1→n=2.2
@@ -251,7 +251,7 @@ def create_visualizations(field_3d, n_map_roi, random_mask):
     ax9 = plt.subplot(3, 4, 9)
     final_intensity = intensity[:, :, -1]
     im9 = ax9.imshow(final_intensity.T, cmap='plasma', origin='lower',
-                     extent=[0, n_wavelengths[0], 0, n_wavelengths[1]])
+                     extent=[0, n_wavelengths_total[0], 0, n_wavelengths_total[1]])
     ax9.set_title('Transmitted Beam Pattern')
     ax9.set_xlabel('X (wavelengths)')
     ax9.set_ylabel('Y (wavelengths)')
